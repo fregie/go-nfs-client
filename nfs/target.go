@@ -1,6 +1,5 @@
 // Copyright © 2017 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: BSD-2-Clause
-//
 package nfs
 
 import (
@@ -9,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/vmware/go-nfs-client/nfs/rpc"
 	"github.com/vmware/go-nfs-client/nfs/util"
@@ -18,10 +18,11 @@ import (
 type Target struct {
 	*rpc.Client
 
-	auth    rpc.Auth
-	fh      []byte
-	dirPath string
-	fsinfo  *FSInfo
+	auth     rpc.Auth
+	fh       []byte
+	dirPath  string
+	fsinfo   *FSInfo
+	callLock sync.Mutex
 }
 
 func NewTarget(addr string, auth rpc.Auth, fh []byte, dirpath string) (*Target, error) {
@@ -57,6 +58,8 @@ func NewTarget(addr string, auth rpc.Auth, fh []byte, dirpath string) (*Target, 
 
 // wraps the Call function to check status and decode errors
 func (v *Target) call(c interface{}) (io.ReadSeeker, error) {
+	v.callLock.Lock()
+	defer v.callLock.Unlock()
 	res, err := v.Call(c)
 	if err != nil {
 		return nil, err
